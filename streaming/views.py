@@ -63,17 +63,33 @@ class VideoCamera(object):
 
 
 
-def gen(camera):
+def gen_videocam(camera):
     while True:
         frame = camera.get_frame()
         yield(b'--frame\r\n'
               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
 
 
+def gen_video(path):
+    vidcap = cv2.VideoCapture(path)
+    success, image = vidcap.read()
+    while success:
+        try:
+            success, image = vidcap.read()
+            ret, jpeg = cv2.imencode('.jpg', image)
+            frame = jpeg.tobytes()
+            yield(b'--frame\r\n'
+              b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+        except:
+            break
+
+
 @gzip.gzip_page
 def livefe(request):
-    camera_generator = gen(VideoCamera())
+    path = "/usr/local/var/www/videos/videos/room.flv"
+    # video_generator = gen_videocam(VideoCamera())
+    video_generator = gen_video(path)
     try:
-        return StreamingHttpResponse(camera_generator, content_type="multipart/x-mixed-replace;boundary=frame")
+        return StreamingHttpResponse(video_generator, content_type="multipart/x-mixed-replace;boundary=frame")
     except HttpResponseServerError as e:
-        print("aborted")
+        print('End')
